@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { validateCode } from '../lib/sessionDummy';
+import { getOrCreateSession } from '../lib/sessionStorage';
 import { useApp } from '../contexts/AppContext';
 import { Card } from '../components/ui/Card';
 import { TextInput } from '../components/ui/TextInput';
@@ -14,6 +14,20 @@ const StartPage: React.FC = () => {
   
   const navigate = useNavigate();
   const { setSession, setParticipantName } = useApp();
+
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 4자리 숫자 필터링
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    if (value.length <= 4) {
+      setCode(value);
+      if (errors.code) setErrors((prev) => ({ ...prev, code: undefined }));
+    }
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+  };
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,9 +45,10 @@ const StartPage: React.FC = () => {
       newErrors.name = '이름은 한글, 영문, 숫자만 입력 가능합니다.';
     }
 
-    // 2. 입장 코드 비어있음 검사
-    if (!code.trim()) {
-      newErrors.code = '입장 코드를 입력해주세요.';
+    // 2. 4자리 숫자 입장 코드 검사
+    const trimmedCode = code.trim();
+    if (trimmedCode.length !== 4) {
+      newErrors.code = '입장 코드는 4자리 숫자여야 합니다.';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -45,21 +60,23 @@ const StartPage: React.FC = () => {
     setErrors({});
 
     try {
-      // 3. 코드 검증
-      const result = await validateCode(code);
-      if (result.valid && result.missionId && result.sessionName) {
-        setSession(code, result.sessionName, result.missionId);
-        setParticipantName(trimmedName);
-        navigate(`/play/${code}/lobby`);
-      } else {
-        setErrors({ code: '유효하지 않은 입장 코드입니다.' });
-      }
-    } catch (err) {
-      setErrors({ code: '코드 검증 중 오류가 발생했습니다.' });
+      // 3. Firebase 세션 검증 및 생성/조회
+      await getOrCreateSession(trimmedCode, trimmedName);
+
+      // 성공 시 AppContext 및 localStorage 업데이트
+      setSession(trimmedCode, "한울푸드 이메일 실습", "mission_tasting");
+      setParticipantName(trimmedName);
+
+      // 미션 로비로 이동
+      navigate(`/play/${trimmedCode}/lobby`);
+    } catch (err: any) {
+      setErrors({ code: err.message || '유효하지 않은 세션 코드입니다. 관리자에게 문의하세요.' });
     } finally {
       setLoading(false);
     }
   };
+
+  const isValid = code.trim().length === 4 && name.trim().length > 0;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-surface">
@@ -72,10 +89,14 @@ const StartPage: React.FC = () => {
 
         <form onSubmit={handleStart} className="flex flex-col gap-6">
           <TextInput
-            label="입장 코드"
-            placeholder="입장 코드 7자리를 입력하세요"
+            label="입장 코드 (숫자 4자리)"
+            placeholder="입장 코드 4자리를 입력하세요"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={4}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={handleCodeChange}
             error={errors.code}
             disabled={loading}
           />
@@ -84,7 +105,7 @@ const StartPage: React.FC = () => {
             label="이름 (직급 제외)"
             placeholder="예: 홍길동"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
             error={errors.name}
             disabled={loading}
           />
@@ -93,7 +114,12 @@ const StartPage: React.FC = () => {
             같은 코드와 이름으로 다시 입장하면 이전 작성 내용을 이어서 진행할 수 있습니다.
           </p>
 
-          <Button type="submit" size="lg" disabled={loading} className="mt-2">
+          <Button 
+            type="submit" 
+            size="lg" 
+            disabled={loading || !isValid} 
+            className="mt-2"
+          >
             {loading ? '확인 중...' : '입장하기'}
           </Button>
         </form>
