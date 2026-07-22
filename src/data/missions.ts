@@ -114,9 +114,8 @@ export const missions: Record<string, Mission> = {
     subjectiveRules: {
       requiredContentElements: ["일시", "장소", "시식 제품", "회신 기한", "회신처"],
       items: [
-        { id: "bodyStructure", label: "본문 구조", maxScore: 20, description: "인사-전달사항-요청사항-맺음말 구조를 갖췄는가. (인사말, 본문, 서명 중 최소 한 곳에 발신자의 이름, 직급, 소속이 포함되었는지 확인)" },
-        { id: "bodyContent", label: "본문 내용", maxScore: 25, description: "일시, 장소, 대상 등 핵심 정보가 정확히 포함되었는가" },
-        { id: "actionRequest", label: "액션 요청 (데모)", maxScore: 5, description: "의도 전달 데모용" }
+        { id: "bodyStructure", label: "본문 구조", maxScore: 15, description: "인사-전달사항-요청사항-맺음말 구조를 갖췄는가. (인사말, 본문, 서명 중 최소 한 곳에 발신자의 이름, 직급, 소속이 포함되었는지 확인)" },
+        { id: "bodyContent", label: "본문 내용", maxScore: 35, description: "일시, 장소, 시식 제품 등 핵심 정보가 정확히 포함되었는지, 그리고 참석 회신 기한 및 회신 요청 문구가 명확히 작성되었는지 종합 평가." }
       ]
     },
   },
