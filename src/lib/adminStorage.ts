@@ -270,10 +270,29 @@ export const listSubmissionsBySessionCode = async (
 };
 
 /**
- * 세션 코드를 sessionCodes 컬렉션에서 완전 삭제합니다.
+ * 세션 코드를 삭제하고 관련된 모든 학습자 세션(sessions) 및 제출 이력(submissions)도 함께 완전 삭제합니다.
  */
 export const deleteSessionCode = async (code: string): Promise<void> => {
   if (!db) return;
-  const ref = doc(db, "sessionCodes", code.trim());
-  await deleteDoc(ref);
+  const trimmedCode = code.trim();
+
+  // 1. sessionCodes 컬렉션 문서 삭제
+  const codeRef = doc(db, "sessionCodes", trimmedCode);
+  await deleteDoc(codeRef);
+
+  try {
+    // 2. 관련된 sessions 컬렉션 문서 일괄 삭제
+    const sessionsQuery = query(collection(db, "sessions"), where("sessionCode", "==", trimmedCode));
+    const sessionsSnap = await getDocs(sessionsQuery);
+    const sessionDeletePromises = sessionsSnap.docs.map((d) => deleteDoc(d.ref));
+
+    // 3. 관련된 submissions 컬렉션 문서 일괄 삭제
+    const submissionsQuery = query(collection(db, "submissions"), where("sessionCode", "==", trimmedCode));
+    const submissionsSnap = await getDocs(submissionsQuery);
+    const submissionDeletePromises = submissionsSnap.docs.map((d) => deleteDoc(d.ref));
+
+    await Promise.all([...sessionDeletePromises, ...submissionDeletePromises]);
+  } catch (e) {
+    console.error("연관 데이터 삭제 중 오류 발생:", e);
+  }
 };

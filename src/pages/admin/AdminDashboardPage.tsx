@@ -38,6 +38,10 @@ const AdminDashboardPage: React.FC = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionItem | null>(null);
   const [showRawJson, setShowRawJson] = useState(false);
 
+  // 세션 코드 삭제 모달용 상태
+  const [codeToDelete, setCodeToDelete] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // 라우트 가드: 미인증 시 로그인 화면으로 리다이렉트
   // 브라우저 sessionStorage - 우리 sessionStorage.ts 모듈과 무관
   useEffect(() => {
@@ -88,22 +92,26 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleDeleteCode = async (code: string) => {
-    const confirmed = window.confirm(
-      `세션 코드 [${code}]를 삭제하시겠습니까?\n이 코드로 진입한 학습자 데이터는 유지되지만 코드는 더 이상 사용할 수 없습니다.`
-    );
-    if (!confirmed) return;
+  const promptDeleteCode = (code: string) => {
+    setCodeToDelete(code);
+  };
+
+  const confirmDeleteCode = async () => {
+    if (!codeToDelete) return;
+    const targetCode = codeToDelete;
+    setCodeToDelete(null);
 
     try {
-      await deleteSessionCode(code);
-      if (selectedCode === code) {
+      await deleteSessionCode(targetCode);
+      if (selectedCode === targetCode) {
         setSelectedCode(null);
         setLearners([]);
         setSubmissions([]);
       }
       await loadCodes();
+      setToastMessage(`세션 코드 [${targetCode}] 및 관련 데이터가 완전히 삭제되었습니다.`);
     } catch (err: any) {
-      alert(`삭제 중 오류가 발생했습니다: ${err.message || err}`);
+      setToastMessage(`삭제 중 오류가 발생했습니다: ${err.message || err}`);
     }
   };
 
@@ -159,22 +167,22 @@ const AdminDashboardPage: React.FC = () => {
         
         {/* 상단 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
+          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">발급된 세션 코드</p>
             <p className="text-3xl font-extrabold text-indigo-400">{codes.length}개</p>
-          </div>
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
+          </Card>
+          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">활성 상태 세션 코드</p>
             <p className="text-3xl font-extrabold text-emerald-400">
               {codes.filter(c => c.isActive).length}개
             </p>
-          </div>
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
+          </Card>
+          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">총 등록 학습자 수</p>
             <p className="text-3xl font-extrabold text-blue-400">
               {codes.reduce((acc, cur) => acc + cur.learnerCount, 0)}명
             </p>
-          </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -264,7 +272,7 @@ const AdminDashboardPage: React.FC = () => {
                         <th className="p-3">생성일</th>
                         <th className="p-3 text-center">학습자 수</th>
                         <th className="p-3 text-center">상태</th>
-                        <th className="p-3 text-right">상세</th>
+                        <th className="p-3 text-right">관리</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/50">
@@ -297,7 +305,7 @@ const AdminDashboardPage: React.FC = () => {
                               조회
                             </button>
                             <button
-                              onClick={() => handleDeleteCode(item.code)}
+                              onClick={() => promptDeleteCode(item.code)}
                               className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40 text-[11px] font-bold rounded transition-colors"
                             >
                               삭제
@@ -417,7 +425,62 @@ const AdminDashboardPage: React.FC = () => {
 
       </main>
 
-      {/* 제출 상세 보기 모달 */}
+      {/* 팝업 모달 1: 세션 코드 일괄 삭제 확인 커스텀 모달 */}
+      {codeToDelete && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl text-slate-100 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center text-xl shrink-0">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-100">세션 코드 일괄 삭제</h3>
+                <p className="text-xs text-slate-400 font-mono">코드: [{codeToDelete}]</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-900/80 p-4 rounded-lg border border-slate-700/80 text-xs text-slate-300 leading-relaxed">
+              세션 코드 <strong className="text-red-400 font-mono font-bold">[{codeToDelete}]</strong>와(과) 연관된 <strong className="text-red-400">모든 학습자 데이터(sessions, submissions 이력)</strong>가 함께 완전 삭제됩니다.<br/><br/>
+              정말 삭제하시겠습니까?
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setCodeToDelete(null)}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-lg transition-colors border border-slate-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteCode}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors shadow-md"
+              >
+                모두 삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 팝업 모달 2: 커스텀 알림 모달 */}
+      {toastMessage && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl max-w-sm w-full p-6 shadow-2xl text-slate-100 flex flex-col gap-4 text-center">
+            <div className="text-3xl">ℹ️</div>
+            <p className="text-sm text-slate-200 leading-relaxed">{toastMessage}</p>
+            <div className="flex justify-center pt-2">
+              <Button
+                onClick={() => setToastMessage(null)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 border-none text-xs"
+              >
+                확인
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 팝업 모달 3: 제출 상세 보기 모달 */}
       {selectedSubmission && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
