@@ -6,13 +6,12 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, className = "" }) => {
-  const hasBg = /\bbg-\S+/.test(className);
-  const hasBorder = /\bborder-\S+/.test(className);
-  const bgClass = hasBg ? "" : "bg-white";
-  const borderClass = hasBorder ? "" : "border-border";
+  const hasBg = className.includes('bg-');
+  const hasBorder = className.includes('border-');
+  const defaultClasses = `${hasBg ? '' : 'bg-white'} ${hasBorder ? '' : 'border border-border'}`;
 
   return (
-    <div className={`${bgClass} ${borderClass} rounded-lg shadow-sm p-6 ${className}`}>
+    <div className={`${defaultClasses} rounded-lg shadow-sm p-6 ${className}`}>
       {children}
     </div>
   );

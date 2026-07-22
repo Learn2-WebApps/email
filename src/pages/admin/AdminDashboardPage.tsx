@@ -15,7 +15,6 @@ import type {
   LearnerSessionItem, 
   SubmissionItem 
 } from '../../lib/adminStorage';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
 const AdminDashboardPage: React.FC = () => {
@@ -42,8 +41,6 @@ const AdminDashboardPage: React.FC = () => {
   const [codeToDelete, setCodeToDelete] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // 라우트 가드: 미인증 시 로그인 화면으로 리다이렉트
-  // 브라우저 sessionStorage - 우리 sessionStorage.ts 모듈과 무관
   useEffect(() => {
     if (!isAdminAuthenticated()) {
       navigate('/admin', { replace: true });
@@ -60,7 +57,6 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // 브라우저 sessionStorage - 우리 sessionStorage.ts 모듈과 무관
     setAdminAuthenticated(false);
     navigate('/admin', { replace: true });
   };
@@ -167,22 +163,22 @@ const AdminDashboardPage: React.FC = () => {
         
         {/* 상단 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">발급된 세션 코드</p>
             <p className="text-3xl font-extrabold text-indigo-400">{codes.length}개</p>
-          </Card>
-          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
+          </div>
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">활성 상태 세션 코드</p>
             <p className="text-3xl font-extrabold text-emerald-400">
               {codes.filter(c => c.isActive).length}개
             </p>
-          </Card>
-          <Card className="bg-slate-800 border-slate-700 p-6 rounded-xl shadow-lg">
+          </div>
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-lg">
             <p className="text-xs font-bold text-slate-400 mb-1">총 등록 학습자 수</p>
             <p className="text-3xl font-extrabold text-blue-400">
               {codes.reduce((acc, cur) => acc + cur.learnerCount, 0)}명
             </p>
-          </Card>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -191,7 +187,7 @@ const AdminDashboardPage: React.FC = () => {
           <div className="lg:col-span-7 flex flex-col gap-6">
             
             {/* 새 코드 생성 카드 */}
-            <Card className="bg-slate-800 border-slate-700 text-slate-100 p-6 shadow-xl">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl text-slate-100">
               <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
                 <span>➕</span> 새 세션 코드 발급
               </h2>
@@ -242,10 +238,10 @@ const AdminDashboardPage: React.FC = () => {
                   </Button>
                 </div>
               </form>
-            </Card>
+            </div>
 
-            {/* 코드 목록 테이블 */}
-            <Card className="bg-slate-800 border-slate-700 text-slate-100 p-6 shadow-xl">
+            {/* 코드 목록 테이블 카드 */}
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl text-slate-100">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                   <span>📋</span> 세션 코드 목록 (최신순)
@@ -317,14 +313,14 @@ const AdminDashboardPage: React.FC = () => {
                   </table>
                 </div>
               )}
-            </Card>
+            </div>
           </div>
 
           {/* 우측: 선택된 코드 상세 및 제출 이력 뷰 (5컬럼) */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            <Card className="bg-slate-800 border-slate-700 text-slate-100 p-6 shadow-xl min-h-[400px]">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl text-slate-100 min-h-[400px]">
               {!selectedCode ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 py-16">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                   <span className="text-4xl mb-2">🔍</span>
                   <p className="text-sm">좌측 목록에서 세션 코드를 선택하시면</p>
                   <p className="text-sm">학습자 목록과 제출 이력을 확인할 수 있습니다.</p>
@@ -354,7 +350,7 @@ const AdminDashboardPage: React.FC = () => {
                           <span>등록된 학습자 ({learners.length}명)</span>
                         </h4>
                         {learners.length === 0 ? (
-                          <p className="text-xs text-slate-500 py-3 text-center bg-slate-900/50 rounded">
+                          <p className="text-xs text-slate-400 py-3 text-center bg-slate-900/50 rounded border border-slate-700/50">
                             아직 이 코드로 진입한 학습자가 없습니다.
                           </p>
                         ) : (
@@ -363,7 +359,7 @@ const AdminDashboardPage: React.FC = () => {
                               <div key={l.id} className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/60 flex items-center justify-between text-xs">
                                 <div>
                                   <span className="font-bold text-slate-200">{l.learnerName}</span>
-                                  <span className="text-slate-500 ml-2 text-[10px]">최근 접속: {formatDate(l.lastAccessedAt)}</span>
+                                  <span className="text-slate-400 ml-2 text-[10px]">최근 접속: {formatDate(l.lastAccessedAt)}</span>
                                 </div>
                                 <span className="bg-blue-950 text-blue-300 px-2 py-0.5 rounded text-[10px] border border-blue-800">
                                   완료: {l.completedMissions.length}건
@@ -380,7 +376,7 @@ const AdminDashboardPage: React.FC = () => {
                           제출 이력 목록 ({submissions.length}건)
                         </h4>
                         {submissions.length === 0 ? (
-                          <p className="text-xs text-slate-500 py-6 text-center bg-slate-900/50 rounded">
+                          <p className="text-xs text-slate-400 py-6 text-center bg-slate-900/50 rounded border border-slate-700/50">
                             제출된 미션 이력이 없습니다.
                           </p>
                         ) : (
@@ -396,11 +392,11 @@ const AdminDashboardPage: React.FC = () => {
                                   <div>
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="font-bold text-slate-200 text-xs">{sub.learnerName}</span>
-                                      <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                                      <span className="text-[10px] text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
                                         {sub.missionId}
                                       </span>
                                     </div>
-                                    <p className="text-[10px] text-slate-500">{formatDate(sub.submittedAt)}</p>
+                                    <p className="text-[10px] text-slate-400">{formatDate(sub.submittedAt)}</p>
                                   </div>
                                   <div className="text-right flex items-center gap-3">
                                     <span className={`text-base font-extrabold ${score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -418,7 +414,7 @@ const AdminDashboardPage: React.FC = () => {
                   )}
                 </div>
               )}
-            </Card>
+            </div>
           </div>
 
         </div>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setAdminAuthenticated } from '../../lib/adminStorage';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
 const AdminLoginPage: React.FC = () => {
@@ -41,7 +40,7 @@ const AdminLoginPage: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-900 text-slate-100">
-      <Card className="w-full max-w-md bg-slate-800 border-slate-700 shadow-2xl p-8">
+      <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4 text-2xl border border-slate-600">
             🛡️
@@ -94,7 +93,7 @@ const AdminLoginPage: React.FC = () => {
             ← 학습자 메인 화면으로 이동
           </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
