@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../contexts/AppContext';
 import { missions } from '../../data/missions';
-import { markMissionCompleted } from '../../lib/sessionStorage';
+import { markMissionCompleted, saveSubmission } from '../../lib/sessionStorage';
 import type { Mission } from '../../types';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { replaceName } from "../../utils/intro";
 
-// 임시로 ComposeFormData 타입을 여기에서도 사용할 수 있도록 정의 또는 import
-// 원래 ScoreResult는 total: number 형태였으나 grading.ts에서 totalScore로 사용했으므로 타입 호환성 주의
-// AppContext나 sessionStorage에 저장된 결과를 불러오는 것으로 가정. 여기선 sessionStorage 사용 예시
 interface LocalScoreResult {
   totalScore: number;
   breakdown: { category: string; score: number; maxScore: number; comment: string; }[];
@@ -32,6 +29,9 @@ const ResultPage: React.FC = () => {
   const [showMyAnswer, setShowMyAnswer] = useState(false);
   const [mySubmission, setMySubmission] = useState<any>(null);
 
+  // 새로고침 시 중복 저장 방지 ref
+  const hasSavedRef = useRef(false);
+
   useEffect(() => {
     if (!code || code !== sessionCode || !participantName || !missionId) {
       navigate('/', { replace: true });
@@ -48,24 +48,51 @@ const ResultPage: React.FC = () => {
     // 세션 스토리지에서 결과 가져오기
     const storedResult = sessionStorage.getItem(`result_${code}`);
     const storedSubmission = sessionStorage.getItem(`submission_${code}`);
+
     if (storedResult) {
-      setResult(JSON.parse(storedResult));
-      // 결과 페이지 진입 시 해당 미션 완료 처리
-      markMissionCompleted(code, participantName, missionId);
+      const parsedResult: LocalScoreResult = JSON.parse(storedResult);
+      setResult(parsedResult);
+
+      let parsedSubmissionData: any = null;
+      if (storedSubmission) {
+        parsedSubmissionData = JSON.parse(storedSubmission);
+        setMySubmission(parsedSubmissionData);
+      }
+
+      // 중복 저장 방지 체크 후 1회만 Firebase 저장을 수행합니다.
+      if (!hasSavedRef.current) {
+        hasSavedRef.current = true;
+
+        if (parsedSubmissionData) {
+          const cleanFormData = {
+            to: (parsedSubmissionData.to || []).map((p: any) => typeof p === 'string' ? p : p.name || p.id),
+            cc: (parsedSubmissionData.cc || []).map((p: any) => typeof p === 'string' ? p : p.name || p.id),
+            bcc: (parsedSubmissionData.bcc || []).map((p: any) => typeof p === 'string' ? p : p.name || p.id),
+            subject: parsedSubmissionData.subject || '',
+            body: parsedSubmissionData.body || '',
+            attachments: (parsedSubmissionData.attachments || []).map((a: any) => typeof a === 'string' ? a : a.currentName || a.originalName || ''),
+            actionType: parsedSubmissionData.actionType || 'compose',
+          };
+
+          // Firebase submissions 컬렉션 저장 및 미션 완료 상태 업데이트
+          saveSubmission(code, participantName, missionId, cleanFormData, parsedResult).catch((err) => {
+            console.error("Firebase 제출 기록 저장 실패:", err);
+          });
+        } else {
+          // 백업 완료 처리
+          markMissionCompleted(code, participantName, missionId).catch((err) => {
+            console.error("미션 완료 상태 저장 실패:", err);
+          });
+        }
+      }
     } else {
       navigate(`/play/${code}/lobby`, { replace: true });
-    }
-
-    if (storedSubmission) {
-      setMySubmission(JSON.parse(storedSubmission));
     }
   }, [code, sessionCode, participantName, missionId, navigate]);
 
   if (!mission || !result) return null;
 
   const handleFinish = () => {
-    // reset() 대신 홈으로 갈 때는 세션을 유지한 채 로비로 갈지 정해야 하지만,
-    // 기존에 처음으로 돌아가기(reset) 동작이므로 로비로 가도록 변경
     sessionStorage.removeItem(`result_${code}`);
     sessionStorage.removeItem(`submission_${code}`);
     navigate(`/play/${code}/lobby`);
