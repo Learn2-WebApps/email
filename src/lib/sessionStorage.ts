@@ -2,9 +2,11 @@ import { db } from "./firebase";
 import { 
   doc, 
   getDoc, 
-  setDoc, 
   updateDoc, 
   collection, 
+  getDocs,
+  query,
+  where,
   addDoc, 
   arrayUnion, 
   serverTimestamp 
@@ -13,6 +15,7 @@ import {
 const COMPLETED_MISSIONS_KEY = "completed_missions_";
 
 export interface SessionData {
+  sessionDocId?: string;
   sessionCode: string;
   learnerName: string;
   completedMissions: string[];
@@ -26,15 +29,16 @@ export const isValidSessionCode = (code: string): boolean => {
 };
 
 /**
- * 세션 코드를 검증하고 세션을 조회하거나 없으면 신규 생성합니다.
+ * 세션 코드를 검증하고 (sessionCode + learnerName) 조합으로 세션을 조회하거나 없으면 신규 생성합니다.
  */
 export const getOrCreateSession = async (
   sessionCode: string, 
   learnerName: string
 ): Promise<SessionData> => {
   const code = sessionCode.trim();
+  const name = learnerName.trim();
 
-  // 1. 형식 유효성 검사 (Firestore 조회 전 선행 검사)
+  // 1. 형식 유효성 검사
   if (!isValidSessionCode(code)) {
     throw new Error("세션 코드는 4자리 숫자여야 합니다.");
   }
@@ -43,7 +47,7 @@ export const getOrCreateSession = async (
     throw new Error("Firebase DB가 연결되어 있지 않습니다. .env.local 설정을 확인해주세요.");
   }
 
-  // 2. sessionCodes 컬렉션에서 세션 코드 유효성 검증
+  // 2. sessionCodes 컬렉션 유효성 검증
   const codeRef = doc(db, "sessionCodes", code);
   const codeSnap = await getDoc(codeRef);
 
@@ -51,28 +55,39 @@ export const getOrCreateSession = async (
     throw new Error("유효하지 않은 세션 코드입니다. 관리자에게 문의하세요.");
   }
 
-  // 3. sessions 컬렉션에서 세션 문서 조회/생성
+  // 3. sessions 컬렉션에서 (sessionCode + learnerName) 조회/생성
   try {
-    const sessionRef = doc(db, "sessions", code);
-    const snap = await getDoc(sessionRef);
+    const q = query(
+      collection(db, "sessions"),
+      where("sessionCode", "==", code),
+      where("learnerName", "==", name)
+    );
+    const snap = await getDocs(q);
 
-    if (snap.exists()) {
-      const data = snap.data();
-      await updateDoc(sessionRef, { lastAccessedAt: serverTimestamp() });
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      const data = docSnap.data();
+      await updateDoc(docSnap.ref, { lastAccessedAt: serverTimestamp() });
       return {
+        sessionDocId: docSnap.id,
         sessionCode: code,
-        learnerName: data.learnerName || learnerName,
+        learnerName: name,
         completedMissions: data.completedMissions || [],
       };
     } else {
-      const newSession = {
-        learnerName,
+      const newSessionRef = await addDoc(collection(db, "sessions"), {
+        sessionCode: code,
+        learnerName: name,
         createdAt: serverTimestamp(),
         lastAccessedAt: serverTimestamp(),
         completedMissions: [],
+      });
+      return {
+        sessionDocId: newSessionRef.id,
+        sessionCode: code,
+        learnerName: name,
+        completedMissions: [],
       };
-      await setDoc(sessionRef, newSession);
-      return { sessionCode: code, learnerName, completedMissions: [] };
     }
   } catch (e: any) {
     console.error("Firestore 세션 처리 실패:", e);
@@ -83,14 +98,20 @@ export const getOrCreateSession = async (
 /**
  * 완료된 미션 ID 목록을 반환합니다.
  */
-export const getCompletedMissions = async (sessionCode: string): Promise<string[]> => {
+export const getCompletedMissions = async (sessionCode: string, learnerName?: string): Promise<string[]> => {
   const code = sessionCode.trim();
-  if (db) {
+  const name = learnerName?.trim();
+
+  if (db && name) {
     try {
-      const sessionRef = doc(db, "sessions", code);
-      const snap = await getDoc(sessionRef);
-      if (snap.exists()) {
-        return snap.data().completedMissions || [];
+      const q = query(
+        collection(db, "sessions"),
+        where("sessionCode", "==", code),
+        where("learnerName", "==", name)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data().completedMissions || [];
       }
     } catch (e) {
       console.error("Firestore 완료 미션 조회 실패:", e);
@@ -99,7 +120,8 @@ export const getCompletedMissions = async (sessionCode: string): Promise<string[
 
   // Fallback: localStorage
   try {
-    const data = localStorage.getItem(`${COMPLETED_MISSIONS_KEY}${code}`);
+    const key = name ? `${COMPLETED_MISSIONS_KEY}${code}_${name}` : `${COMPLETED_MISSIONS_KEY}${code}`;
+    const data = localStorage.getItem(key);
     if (data) return JSON.parse(data) as string[];
   } catch (e) {
     console.error("localStorage 완료 미션 조회 실패:", e);
@@ -110,15 +132,21 @@ export const getCompletedMissions = async (sessionCode: string): Promise<string[
 /**
  * 특정 미션을 완료 상태로 표시합니다.
  */
-export const markMissionCompleted = async (sessionCode: string, missionId: string): Promise<void> => {
+export const markMissionCompleted = async (
+  sessionCode: string, 
+  learnerName: string, 
+  missionId: string
+): Promise<void> => {
   const code = sessionCode.trim();
+  const name = learnerName.trim();
 
   // localStorage 캐시 업데이트
   try {
-    const completed = await getCompletedMissions(code);
+    const key = `${COMPLETED_MISSIONS_KEY}${code}_${name}`;
+    const completed = await getCompletedMissions(code, name);
     if (!completed.includes(missionId)) {
       completed.push(missionId);
-      localStorage.setItem(`${COMPLETED_MISSIONS_KEY}${code}`, JSON.stringify(completed));
+      localStorage.setItem(key, JSON.stringify(completed));
     }
   } catch (e) {
     console.error("localStorage 저장 실패:", e);
@@ -127,11 +155,18 @@ export const markMissionCompleted = async (sessionCode: string, missionId: strin
   // Firestore 업데이트
   if (db) {
     try {
-      const sessionRef = doc(db, "sessions", code);
-      await updateDoc(sessionRef, {
-        completedMissions: arrayUnion(missionId),
-        lastAccessedAt: serverTimestamp(),
-      });
+      const q = query(
+        collection(db, "sessions"),
+        where("sessionCode", "==", code),
+        where("learnerName", "==", name)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        await updateDoc(snap.docs[0].ref, {
+          completedMissions: arrayUnion(missionId),
+          lastAccessedAt: serverTimestamp(),
+        });
+      }
     } catch (e) {
       console.error("Firestore 미션 완료 업데이트 실패:", e);
     }
@@ -143,16 +178,19 @@ export const markMissionCompleted = async (sessionCode: string, missionId: strin
  */
 export const saveSubmission = async (
   sessionCode: string,
+  learnerName: string,
   missionId: string,
   formData: any,
   scoreResult: any
 ): Promise<void> => {
   const code = sessionCode.trim();
+  const name = learnerName.trim();
 
   if (db) {
     try {
       await addDoc(collection(db, "submissions"), {
         sessionCode: code,
+        learnerName: name,
         missionId,
         submittedAt: serverTimestamp(),
         formData,
@@ -164,5 +202,5 @@ export const saveSubmission = async (
   }
 
   // 미션 완료 상태 업데이트
-  await markMissionCompleted(code, missionId);
+  await markMissionCompleted(code, name, missionId);
 };
