@@ -51,7 +51,7 @@ const ResultPage: React.FC = () => {
     if (storedResult) {
       setResult(JSON.parse(storedResult));
       // 결과 페이지 진입 시 해당 미션 완료 처리
-      markMissionCompleted(code, missionId);
+      markMissionCompleted(code, participantName, missionId);
     } else {
       navigate(`/play/${code}/lobby`, { replace: true });
     }

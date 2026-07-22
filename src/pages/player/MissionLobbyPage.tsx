@@ -21,7 +21,7 @@ const MissionLobbyPage: React.FC = () => {
     }
 
     const loadCompleted = async () => {
-      const c = await getCompletedMissions(code);
+      const c = await getCompletedMissions(code, participantName);
       setCompleted(c);
     };
     loadCompleted();
