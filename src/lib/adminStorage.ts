@@ -4,6 +4,7 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
+  deleteDoc,
   collection, 
   getDocs, 
   query, 
@@ -266,4 +267,13 @@ export const listSubmissionsBySessionCode = async (
     console.error("제출 이력 조회 실패:", e);
     return [];
   }
+};
+
+/**
+ * 세션 코드를 sessionCodes 컬렉션에서 완전 삭제합니다.
+ */
+export const deleteSessionCode = async (code: string): Promise<void> => {
+  if (!db) return;
+  const ref = doc(db, "sessionCodes", code.trim());
+  await deleteDoc(ref);
 };

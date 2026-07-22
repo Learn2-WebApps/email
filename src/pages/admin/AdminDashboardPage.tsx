@@ -6,6 +6,7 @@ import {
   createSessionCode, 
   listSessionCodes, 
   toggleSessionCodeActive, 
+  deleteSessionCode,
   listSessionsByCode, 
   listSubmissionsBySessionCode, 
 } from '../../lib/adminStorage';
@@ -84,6 +85,25 @@ const AdminDashboardPage: React.FC = () => {
       await loadCodes();
     } catch (err) {
       console.error("상태 변경 실패:", err);
+    }
+  };
+
+  const handleDeleteCode = async (code: string) => {
+    const confirmed = window.confirm(
+      `세션 코드 [${code}]를 삭제하시겠습니까?\n이 코드로 진입한 학습자 데이터는 유지되지만 코드는 더 이상 사용할 수 없습니다.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteSessionCode(code);
+      if (selectedCode === code) {
+        setSelectedCode(null);
+        setLearners([]);
+        setSubmissions([]);
+      }
+      await loadCodes();
+    } catch (err: any) {
+      alert(`삭제 중 오류가 발생했습니다: ${err.message || err}`);
     }
   };
 
@@ -269,12 +289,18 @@ const AdminDashboardPage: React.FC = () => {
                               {item.isActive ? '활성' : '비활성'}
                             </button>
                           </td>
-                          <td className="p-3 text-right">
+                          <td className="p-3 text-right flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleSelectCode(item.code)}
                               className="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[11px] font-bold rounded transition-colors"
                             >
                               조회
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCode(item.code)}
+                              className="px-2.5 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40 text-[11px] font-bold rounded transition-colors"
+                            >
+                              삭제
                             </button>
                           </td>
                         </tr>
